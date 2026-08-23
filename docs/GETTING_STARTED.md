@@ -99,12 +99,18 @@ automatically and succeeds - it is idempotent, so you can also just run it again
 ## 6. Restart the app so it builds its tables
 
 ```
-databricks apps stop cancer-registrar-app
-databricks apps start cancer-registrar-app
+databricks bundle run registrar_app -t dev
 ```
 
-The app creates its 4 Postgres tables (`case_decisions`, `draft_case`, `working_draft`,
-`finalized_forms`) automatically on first open, now that it has access.
+Re-running this redeploys and restarts the app in one step (more reliable than
+`apps stop`/`apps start`, which can leave it in a failed state). A fresh app process
+then creates its 4 Postgres tables (`case_decisions`, `draft_case`, `working_draft`,
+`finalized_forms`) automatically on first open, now that it has Lakebase access.
+
+Optional: the app-write **audit CDF** (Postgres -> Delta capture of decisions/finalized
+forms) can only be set up after those tables exist. Once the app has been opened once,
+re-run step 5 to finish it: `databricks bundle run provision_lakebase -t dev --params
+app_sp=<id>`. Everything else (the app, the queue, drafts) works without this.
 
 ---
 

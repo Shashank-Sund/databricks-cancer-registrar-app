@@ -74,7 +74,7 @@ databricks bundle deploy -t dev
 databricks bundle run registrar_app -t dev             # start the app; copy its SP id from the app page
 databricks bundle run load_sample_data -t dev          # loads 15 tables from sample_data/
 databricks bundle run provision_lakebase -t dev --params app_sp=<APP_SP_ID>   # its own Lakebase, headless
-databricks apps stop cancer-registrar-app && databricks apps start cancer-registrar-app  # pick up Lakebase
+databricks bundle run registrar_app -t dev             # restart so it picks up Lakebase + builds its tables
 # open the app (URL on its page); GET /api/health should show "store":"lakebase"
 ```
 
@@ -88,7 +88,7 @@ databricks bundle run synthetic_data -t dev            # ~200 synthetic patients
 databricks bundle run silver -t dev                    # Lakeflow SDP: Bronze -> Silver
 databricks bundle run classifier -t dev                # ai_query -> gold_flagged
 databricks bundle run provision_lakebase -t dev --params app_sp=<APP_SP_ID>   # its own Lakebase, headless
-databricks apps stop cancer-registrar-app && databricks apps start cancer-registrar-app
+databricks bundle run registrar_app -t dev             # restart so it picks up Lakebase + builds its tables
 # open the app; triaging a case reportable triggers the abstraction job live
 # NOTE: use ONE data path (sample OR full pipeline), not both - they write the same tables.
 ```

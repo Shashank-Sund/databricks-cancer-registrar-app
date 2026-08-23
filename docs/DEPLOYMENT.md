@@ -107,11 +107,16 @@ Running as a job means it works from anywhere (no local Postgres network needed)
 retries once past the Lakebase cold-start blip.
 
 Because the app cached the in-memory store on first boot (before it had Lakebase access),
-restart it once after this so it re-attempts Lakebase and creates its schema + tables:
+restart it once after this so it re-attempts Lakebase and creates its schema + tables.
+Re-run the app deployment (more reliable than `apps stop`/`apps start`):
 
 ```bash
-databricks apps stop cancer-registrar-app && databricks apps start cancer-registrar-app
+databricks bundle run registrar_app -t dev
 ```
+
+The app-write audit CDF (`cancer_app_cdf`) can only be created once the app has made its
+schema, so run `provision_lakebase` once more after this to finish it (optional; the app
+works without it).
 
 The job prints the resolved endpoint and host. If the endpoint path differs from the
 `lakebase_endpoint` variable, update that variable and re-run `databricks bundle deploy`.
@@ -157,9 +162,10 @@ cd app/client && npm ci && npm run build   # writes to ../server/static
   `GRANT USE CATALOG ON CATALOG <cat> TO \`<app_sp>\``, then `GRANT USE SCHEMA, SELECT ON
   SCHEMA <cat>.<gold_schema> TO \`<app_sp>\`` (and the silver schema).
 - **App store stays `memory` after provisioning.** Confirm you ran
-  `bundle run provision_lakebase --params app_sp=<id>` AND then restarted the app
-  (`apps stop` + `apps start`). The app caches its store on first boot, so it must restart
-  once after the SP is granted. `/api/health` should then show `"store":"lakebase"`. (The
+  `bundle run provision_lakebase --params app_sp=<id>` AND then re-ran
+  `bundle run registrar_app` to restart the app. The app caches its store on first boot,
+  so it must restart once after the SP is granted. `/api/health` should then show
+  `"store":"lakebase"`. (The
   provision job installs the `databricks_auth` extension on a brand-new Autoscaling project
   automatically, so no Apps UI database-binding step is required.)
 - **"MANAGED table already exists" when running the silver pipeline.** You loaded the
