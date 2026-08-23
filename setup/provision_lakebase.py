@@ -113,6 +113,14 @@ def grant_app_sp(w, endpoint, host, dbname, sp):
         f"host={host} dbname={dbname} user={user} password={cred.token} sslmode=require",
         autocommit=True,
     ) as conn, conn.cursor() as cur:
+        # databricks_auth provides databricks_create_role. A freshly created Autoscaling
+        # project ships only plpgsql, so install it first (needs CREATEROLE, not superuser).
+        # This is what makes headless SP provisioning work on a brand-new project.
+        try:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS databricks_auth")
+            print("ensured extension: databricks_auth")
+        except Exception as e:
+            print(f"databricks_auth note: {type(e).__name__}: {str(e)[:120]}")
         try:
             cur.execute("SELECT databricks_create_role(%s, 'SERVICE_PRINCIPAL')", (sp,))
             print("created SP role")

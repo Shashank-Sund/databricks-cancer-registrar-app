@@ -56,6 +56,9 @@ Two layers cooperate:
 
 ## Quickstart
 
+**New here? Follow the dead-simple, verified walkthrough in
+[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md).** The summary below is the same flow.
+
 Prerequisites: the [Databricks CLI](https://docs.databricks.com/en/dev-tools/cli/index.html)
 with a profile for your workspace, a **serverless SQL warehouse**, and the serving
 endpoints in your region (see [docs/CLOUD_NOTES.md](docs/CLOUD_NOTES.md)). Set your
@@ -68,12 +71,9 @@ Loads the shipped sample dataset so you can click through the whole app immediat
 
 ```bash
 databricks bundle deploy -t dev
-databricks bundle run registrar_app -t dev             # start + deploy the app (deploy alone leaves it stopped)
+databricks bundle run registrar_app -t dev             # start the app; copy its SP id from the app page
 databricks bundle run load_sample_data -t dev          # loads 15 tables from sample_data/
-# grant the app SP (id is on the app's page) + provision Lakebase:
-python setup/provision_lakebase.py --create-project \
-  --catalog <your_catalog> --gold-schema cancer_gold --silver-schema cancer_silver \
-  --warehouse-id <your_warehouse_id> --app-sp <app_sp_id> --app-schema cancer_registry_app
+databricks bundle run provision_lakebase -t dev --params app_sp=<APP_SP_ID>   # its own Lakebase, headless
 databricks apps stop cancer-registrar-app && databricks apps start cancer-registrar-app  # pick up Lakebase
 # open the app (URL on its page); GET /api/health should show "store":"lakebase"
 ```
@@ -82,16 +82,15 @@ databricks apps stop cancer-registrar-app && databricks apps start cancer-regist
 
 ```bash
 databricks bundle deploy -t dev
-databricks bundle run registrar_app -t dev             # start + deploy the app
+databricks bundle run registrar_app -t dev             # start the app; copy its SP id from the app page
 databricks bundle run setup -t dev                     # schemas + tables + dictionary + code lookup
 databricks bundle run synthetic_data -t dev            # ~200 synthetic patients -> Bronze
 databricks bundle run silver -t dev                    # Lakeflow SDP: Bronze -> Silver
 databricks bundle run classifier -t dev                # ai_query -> gold_flagged
-python setup/provision_lakebase.py --create-project \
-  --catalog <your_catalog> --gold-schema cancer_gold --silver-schema cancer_silver \
-  --warehouse-id <your_warehouse_id> --app-sp <app_sp_id> --app-schema cancer_registry_app
+databricks bundle run provision_lakebase -t dev --params app_sp=<APP_SP_ID>   # its own Lakebase, headless
 databricks apps stop cancer-registrar-app && databricks apps start cancer-registrar-app
 # open the app; triaging a case reportable triggers the abstraction job live
+# NOTE: use ONE data path (sample OR full pipeline), not both - they write the same tables.
 ```
 
 ---
@@ -103,10 +102,10 @@ databricks apps stop cancer-registrar-app && databricks apps start cancer-regist
 | Jobs (setup, synthetic_data, classifier, abstraction, load_sample_data) | `databricks bundle deploy` |
 | Silver Lakeflow SDP pipeline | `databricks bundle deploy` |
 | The Databricks App (React + FastAPI) | `databricks bundle deploy` (resources/app.yml) |
+| Lakebase project + `databricks_auth` extension + SP grants (UC + Postgres) + synced tables + CDF | **One command** (headless, idempotent): `bundle run provision_lakebase --params app_sp=<id>` |
+| The app creating its 4 Postgres tables | Automatic on first open (after provisioning + restart) |
 | Set your workspace host + bundle variables | **Manual** (edit `databricks.yml` or `--var`) |
-| Lakebase project, Delta->Lakebase synced tables, Lakebase CDF | **Manual, once**: `setup/provision_lakebase.py` (not a bundle resource yet) |
-| Grant the app service principal Lakebase access | **Manual**: same script, `--app-sp <id>` (id shows on the app page after deploy) |
-| Load data / run the pipeline | **Manual**: run the jobs above for your chosen path |
+| Start the app / pick a data path / restart after provisioning | **Manual**: the `bundle run` commands above (see GETTING_STARTED.md) |
 
 The app creates its own Postgres schema and 4 native tables on first request (as its
 service principal), so you do not create those by hand.

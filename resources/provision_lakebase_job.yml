@@ -1,0 +1,43 @@
+# Provision the app's dedicated Lakebase project as a SERVERLESS JOB (runs where it can
+# reach the Lakebase port, with a retry for the first-connection cold start). Run this
+# once AFTER `bundle run registrar_app` (which creates the app service principal), passing
+# the app SP client id from the app's page:
+#
+#   databricks bundle run provision_lakebase -t dev --params app_sp=<APP_SERVICE_PRINCIPAL_CLIENT_ID>
+#
+# It is idempotent: creates the Lakebase project if missing, installs databricks_auth,
+# grants the app SP (Unity Catalog SELECT + Postgres CONNECT/CREATE), and creates the
+# Delta->Lakebase synced tables + Lakebase CDF. After it runs, restart the app once so it
+# creates its OLTP schema + tables in the project.
+resources:
+  jobs:
+    provision_lakebase:
+      name: "cancer-registrar-app - Provision Lakebase (run once, after the app exists)"
+      description: "Create the Lakebase project, install databricks_auth, grant the app SP, and create synced tables + CDF."
+      # app_sp is a run-time JOB PARAMETER (the SP id is only known after the app is
+      # created); pass it with:  databricks bundle run provision_lakebase --params app_sp=<id>
+      parameters:
+        - name: app_sp
+          default: ""
+      tasks:
+        - task_key: provision
+          max_retries: 1
+          spark_python_task:
+            python_file: ../setup/provision_lakebase.py
+            parameters:
+              - "--create-project"
+              - "--project=${var.lakebase_project}"
+              - "--catalog=${var.catalog}"
+              - "--gold-schema=${var.gold_schema}"
+              - "--silver-schema=${var.silver_schema}"
+              - "--app-schema=${var.lakebase_app_schema}"
+              - "--warehouse-id=${var.warehouse_id}"
+              - "--app-sp={{job.parameters.app_sp}}"
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            client: "3"
+            dependencies:
+              - databricks-sdk>=0.81.0
+              - psycopg[binary]>=3.1

@@ -91,15 +91,20 @@ workspace admin). It grants the app service principal its Unity Catalog privileg
 (USE CATALOG + USE SCHEMA + SELECT, run as SQL through the warehouse) and its Lakebase
 CONNECT/CREATE, so the app can read the gold tables and create its own OLTP schema.
 
+Run it as the provided serverless job, passing the app SP id (from the app page) as a
+run parameter:
+
 ```bash
-python setup/provision_lakebase.py \
-  --create-project \                       # omit if the Lakebase project already exists
-  --project cancer-registry --branch production \
-  --catalog <your_catalog> --gold-schema cancer_gold --silver-schema cancer_silver \
-  --warehouse-id <your_warehouse_id> \     # for the UC grants
-  --app-sp <app_service_principal_client_id> \   # from the app page (step 2)
-  --app-schema cancer_registry_app
+databricks bundle run provision_lakebase -t dev --params app_sp=<app_service_principal_client_id>
 ```
+
+This is fully headless and idempotent. It reads the project/catalog/schema from your
+bundle variables and, on a brand-new Autoscaling project, even installs the
+`databricks_auth` extension so the SP role can be created without any Apps UI step. It
+grants the app SP its Unity Catalog privileges (SELECT via the warehouse) and Lakebase
+CONNECT/CREATE, then creates the Delta->Lakebase synced tables and the Lakebase CDF.
+Running as a job means it works from anywhere (no local Postgres network needed) and
+retries once past the Lakebase cold-start blip.
 
 Because the app cached the in-memory store on first boot (before it had Lakebase access),
 restart it once after this so it re-attempts Lakebase and creates its schema + tables:
@@ -108,12 +113,11 @@ restart it once after this so it re-attempts Lakebase and creates its schema + t
 databricks apps stop cancer-registrar-app && databricks apps start cancer-registrar-app
 ```
 
-The script prints the resolved endpoint and host. If the endpoint path differs from the
+The job prints the resolved endpoint and host. If the endpoint path differs from the
 `lakebase_endpoint` variable, update that variable and re-run `databricks bundle deploy`.
-
-Flags: `--skip-synced` (skip the read-only showcase synced tables) and `--skip-cdf` (skip
-the Postgres->Delta capture) for a minimal setup. Omit `--warehouse-id` to skip UC grants
-and apply them yourself.
+To run it directly instead of as a job (from a machine that can reach the Lakebase port),
+`setup/provision_lakebase.py` takes the same options as flags (`--app-sp`, `--warehouse-id`,
+`--skip-synced`, `--skip-cdf`).
 
 ## 5. Open the app
 
@@ -152,17 +156,16 @@ cd app/client && npm ci && npm run build   # writes to ../server/static
   `--warehouse-id` and `--app-sp`, or grant it directly:
   `GRANT USE CATALOG ON CATALOG <cat> TO \`<app_sp>\``, then `GRANT USE SCHEMA, SELECT ON
   SCHEMA <cat>.<gold_schema> TO \`<app_sp>\`` (and the silver schema).
-- **App store stays `memory` / cannot connect to a BRAND-NEW Lakebase project.** Attaching
-  the app service principal to a Lakebase Autoscaling project is only supported through the
-  Apps UI today: open the app, Add resource -> Database, and select the Lakebase database.
-  That step auto-provisions the SP's Postgres role. Headless provisioning is not available
-  for a freshly created autoscale project (the `databricks_create_role` SQL helper is not
-  present on it, `databricks postgres` has no create-role command, and the DABs app
-  `database` resource targets provisioned Lakebase instances only). After the UI binding,
-  set `lakebase_endpoint` to that project's endpoint, redeploy, and restart the app so it
-  creates its schema + tables there. Because data is isolated by the app schema
-  (`lakebase_app_schema`), multiple apps can also safely SHARE one existing project whose
-  SP role helper is already present, which needs no UI step.
+- **App store stays `memory` after provisioning.** Confirm you ran
+  `bundle run provision_lakebase --params app_sp=<id>` AND then restarted the app
+  (`apps stop` + `apps start`). The app caches its store on first boot, so it must restart
+  once after the SP is granted. `/api/health` should then show `"store":"lakebase"`. (The
+  provision job installs the `databricks_auth` extension on a brand-new Autoscaling project
+  automatically, so no Apps UI database-binding step is required.)
+- **"MANAGED table already exists" when running the silver pipeline.** You loaded the
+  sample data AND then tried the full pipeline; the two paths write the same tables. Pick
+  ONE. To switch, drop the `cancer_bronze` / `cancer_silver` / `cancer_gold` schemas (or
+  deploy into a fresh catalog) and re-run.
 - **Serverless only.** These jobs use serverless compute (no instance types). If your
   workspace lacks serverless, enable it.
 - **`ai_query` fails on the classifier.** The endpoint must support batch inference.
