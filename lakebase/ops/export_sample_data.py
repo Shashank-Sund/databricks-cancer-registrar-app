@@ -12,7 +12,7 @@ from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.getOrCreate()
 
-CAT = "serverless_stable_omnigent_catalog"
+CAT = "cancer_registry_demo"  # set to the catalog holding the populated demo tables
 VOL = f"/Volumes/{CAT}/cancer_gold/exports"
 OUT = f"{VOL}/sample_data"
 

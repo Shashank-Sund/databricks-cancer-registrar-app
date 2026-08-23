@@ -15,7 +15,7 @@ from databricks.sdk.service.postgres import (
     SyncedTableSyncedTableSpecSyncedTableSchedulingPolicy as Sched, NewPipelineSpec,
 )
 
-CAT = "serverless_stable_omnigent_catalog"
+CAT = "cancer_registry_demo"  # set to your catalog
 BRANCH = "projects/cancer-registry/branches/production"
 tid = f"{CAT}.cancer_gold.naaccr_dictionary"       # synced_table_id (create arg, no prefix)
 resource = f"synced_tables/{tid}"                   # full resource name (get/delete arg)
