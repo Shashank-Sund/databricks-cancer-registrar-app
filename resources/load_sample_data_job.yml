@@ -1,0 +1,23 @@
+# Instant-sandbox path: load the shipped sample dataset (15 tables) into the target
+# catalog so the app runs immediately with no synthetic generation, pipeline, or LLM
+# spend. Serverless.
+resources:
+  jobs:
+    load_sample_data:
+      name: "cancer-registrar-app - Load Sample Data"
+      description: "Load the shipped Parquet sample dataset (10 bronze + silver_case_context + 4 gold) into Delta tables."
+      tasks:
+        - task_key: load
+          spark_python_task:
+            python_file: ../sample_data/load_sample_data.py
+            parameters:
+              - "catalog=${var.catalog}"
+              - "bronze_schema=${var.bronze_schema}"
+              - "silver_schema=${var.silver_schema}"
+              - "gold_schema=${var.gold_schema}"
+              - "tables=all"
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            client: "3"

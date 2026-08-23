@@ -1,0 +1,73 @@
+# ============================================================================
+# Databricks Asset Bundle resource: Cancer Registrar App (serverless)
+# ============================================================================
+# A React (Vite) client prebuilt into app/server/static, served by a FastAPI
+# backend. Fully portable: nothing workspace-specific is baked into the source.
+#
+# All deployment-specific configuration is injected here via config.env, which
+# the bundle templates at deploy time (${var.*} and ${resources...} references).
+# The app's source app.yaml carries only the portable startup command; the
+# config block below supplies the command AND env, and takes precedence.
+#
+# Env flow (config.py reads these exact names):
+#   REGISTRY_CATALOG        <- ${var.catalog}              (workspace catalog)
+#   REGISTRY_GOLD_SCHEMA    <- ${var.gold_schema}
+#   REGISTRY_SILVER_SCHEMA  <- ${var.silver_schema}
+#   LAKEBASE_ENDPOINT       <- ${var.lakebase_endpoint}    (Postgres host auto-resolves from this)
+#   LAKEBASE_SCHEMA         <- ${var.lakebase_app_schema}  (app-owned native schema)
+#   DATABRICKS_WAREHOUSE_ID <- value_from the bound sql_warehouse resource
+#   ABSTRACTION_JOB_ID      <- ${resources.jobs.abstraction.id} (the deployed abstraction job)
+#
+# Resource bindings also grant the app service principal the permissions it
+# needs: CAN_USE on the warehouse (Statement Execution reads) and CAN_MANAGE_RUN
+# on the abstraction job (triage trigger). PGHOST is deliberately NOT injected:
+# the Postgres host is resolved at runtime from LAKEBASE_ENDPOINT, so the same
+# bundle deploys unchanged on AWS and Azure.
+
+resources:
+  apps:
+    registrar_app:
+      name: ${var.app_name}
+      description: "Cancer registrar workflow: reportability triage + NAACCR abstraction review (serverless, portable)."
+      source_code_path: ../app/server
+
+      config:
+        command:
+          - "uvicorn"
+          - "main:app"
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "8000"
+        env:
+          # ---- Unity Catalog / SQL warehouse (reference + PHI reads) ----
+          - name: "REGISTRY_CATALOG"
+            value: ${var.catalog}
+          - name: "REGISTRY_GOLD_SCHEMA"
+            value: ${var.gold_schema}
+          - name: "REGISTRY_SILVER_SCHEMA"
+            value: ${var.silver_schema}
+          - name: "DATABRICKS_WAREHOUSE_ID"
+            value_from: "sql_warehouse"
+          # ---- Lakebase (OLTP app state); host auto-resolves from the endpoint ----
+          - name: "LAKEBASE_ENDPOINT"
+            value: ${var.lakebase_endpoint}
+          - name: "LAKEBASE_SCHEMA"
+            value: ${var.lakebase_app_schema}
+          # ---- Abstraction Lakeflow Job (triggered on a "reportable" triage) ----
+          - name: "ABSTRACTION_JOB_ID"
+            value: ${resources.jobs.abstraction.id}
+
+      resources:
+        # Grants the app service principal CAN_USE on the warehouse and injects
+        # its id as DATABRICKS_WAREHOUSE_ID (value_from, above).
+        - name: "sql_warehouse"
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: "CAN_USE"
+        # Grants the app service principal permission to trigger the abstraction
+        # job. Key `abstraction` is defined in resources/abstraction_job.yml.
+        - name: "abstraction_job"
+          job:
+            id: ${resources.jobs.abstraction.id}
+            permission: "CAN_MANAGE_RUN"

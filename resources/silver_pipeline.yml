@@ -1,0 +1,17 @@
+# Silver layer as a serverless Lakeflow SDP pipeline: Bronze -> per-case context.
+# Materialized views (full recompute) assemble multi-line notes and join into
+# silver_case_context. The SQL reads ${catalog} / ${bronze_schema} from `configuration`;
+# the pipeline writes its MVs into the target catalog + silver schema.
+resources:
+  pipelines:
+    silver:
+      name: "cancer-registrar-app - Silver (Lakeflow SDP)"
+      serverless: true
+      catalog: ${var.catalog}
+      schema: ${var.silver_schema}
+      libraries:
+        - file:
+            path: ../lakehouse/silver_pipeline.sql
+      configuration:
+        catalog: ${var.catalog}
+        bronze_schema: ${var.bronze_schema}

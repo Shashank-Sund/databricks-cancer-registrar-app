@@ -1,0 +1,40 @@
+# NAACCR abstraction: Claude generates 202 authentic NAACCR fields for a reportable
+# case (value + confidence + source), writing gold_form_ai_draft. Triggered per-case by
+# the app via the case_ids JOB parameter (so the bundle-injected config params survive);
+# can also be run manually (empty case_ids -> a few likely-reportable cases). Serverless.
+#
+# Job key is `abstraction` because resources/app.yml references ${resources.jobs.abstraction.id}.
+resources:
+  jobs:
+    abstraction:
+      name: "cancer-registrar-app - NAACCR Abstraction"
+      description: "Claude abstraction of NAACCR fields for reportable cases -> gold_form_ai_draft."
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: gold_schema
+          default: ${var.gold_schema}
+        - name: silver_schema
+          default: ${var.silver_schema}
+        - name: abstraction_endpoint
+          default: ${var.abstraction_endpoint}
+        - name: case_ids
+          default: ""
+      tasks:
+        - task_key: abstract
+          spark_python_task:
+            python_file: ../ml/abstraction/run_abstraction.py
+            parameters:
+              - "catalog={{job.parameters.catalog}}"
+              - "gold_schema={{job.parameters.gold_schema}}"
+              - "silver_schema={{job.parameters.silver_schema}}"
+              - "abstraction_endpoint={{job.parameters.abstraction_endpoint}}"
+              - "{{job.parameters.case_ids}}"
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            client: "3"
+            dependencies:
+              - databricks-sdk
+              - requests

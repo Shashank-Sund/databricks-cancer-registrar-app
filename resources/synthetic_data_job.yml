@@ -1,0 +1,22 @@
+# Full-pipeline path (alternative to load_sample_data): generate the coherent synthetic
+# breast-cancer Bronze cohort (~200 patients, seeded/reproducible). Serverless.
+# Run the setup job first (it creates the schemas this writes into).
+resources:
+  jobs:
+    synthetic_data:
+      name: "cancer-registrar-app - Generate Synthetic Data"
+      description: "Generate the coherent synthetic breast-cancer Bronze cohort (~200 patients)."
+      tasks:
+        - task_key: generate
+          spark_python_task:
+            python_file: ../lakehouse/generate_synthetic_data.py
+            # generate_synthetic_data.py takes positional args: catalog, bronze_schema, num_patients
+            parameters:
+              - ${var.catalog}
+              - ${var.bronze_schema}
+              - "200"
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            client: "3"

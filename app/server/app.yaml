@@ -1,0 +1,16 @@
+# Databricks Apps runtime config.
+#
+# This file intentionally contains ONLY the portable startup command, which has
+# no workspace- or deploy-specific values. All environment variables (catalog,
+# schemas, warehouse id, Lakebase endpoint/schema, abstraction job id) are
+# injected at deploy time by the Databricks Asset Bundle app resource
+# (resources/app.yml -> config.env), which templates ${var.*} and resource
+# references. The bundle's config.env overrides anything here, so nothing
+# environment-specific is baked into the source.
+command:
+  - "uvicorn"
+  - "main:app"
+  - "--host"
+  - "0.0.0.0"
+  - "--port"
+  - "8000"

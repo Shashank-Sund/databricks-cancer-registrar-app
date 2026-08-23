@@ -1,0 +1,62 @@
+# Setup job (full-pipeline path): create the medallion schemas + Bronze/Gold tables,
+# load the authentic NAACCR dictionary, and load the code lookup reference table.
+# Serverless. Run this once before synthetic_data -> silver -> classifier.
+resources:
+  jobs:
+    setup:
+      name: "cancer-registrar-app - Setup (schemas, tables, reference data)"
+      description: "Create medallion schemas + Bronze/Gold tables; load the authentic NAACCR dictionary and the code lookup."
+      tasks:
+        - task_key: create_schemas
+          spark_python_task:
+            python_file: ../lakehouse/run_sql.py
+            parameters:
+              - "sql_file=create_schemas.sql"
+              - "catalog=${var.catalog}"
+              - "bronze_schema=${var.bronze_schema}"
+              - "silver_schema=${var.silver_schema}"
+              - "gold_schema=${var.gold_schema}"
+          environment_key: default
+        - task_key: create_bronze_tables
+          depends_on:
+            - task_key: create_schemas
+          spark_python_task:
+            python_file: ../lakehouse/run_sql.py
+            parameters:
+              - "sql_file=bronze_tables.sql"
+              - "catalog=${var.catalog}"
+              - "bronze_schema=${var.bronze_schema}"
+          environment_key: default
+        - task_key: create_gold_tables
+          depends_on:
+            - task_key: create_schemas
+          spark_python_task:
+            python_file: ../lakehouse/run_sql.py
+            parameters:
+              - "sql_file=gold_layer.sql"
+              - "catalog=${var.catalog}"
+              - "gold_schema=${var.gold_schema}"
+          environment_key: default
+        - task_key: load_dictionary
+          depends_on:
+            - task_key: create_gold_tables
+          spark_python_task:
+            python_file: ../ml/naaccr/load_authentic_dictionary.py
+            parameters:
+              - "catalog=${var.catalog}"
+              - "gold_schema=${var.gold_schema}"
+          environment_key: default
+        - task_key: load_code_lookup
+          depends_on:
+            - task_key: create_gold_tables
+          spark_python_task:
+            python_file: ../sample_data/load_sample_data.py
+            parameters:
+              - "catalog=${var.catalog}"
+              - "gold_schema=${var.gold_schema}"
+              - "tables=gold_code_lookup"
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            client: "3"

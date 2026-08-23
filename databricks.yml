@@ -1,0 +1,67 @@
+# Databricks Asset Bundle root. Everything portable deploys from here:
+#   databricks bundle deploy -t dev
+# creates the jobs, the Lakeflow SDP silver pipeline, and the Databricks App.
+# Lakebase (project + synced tables + CDF) is provisioned once via
+# setup/provision_lakebase.py (it is not a bundle resource yet). See README.md.
+#
+# Works on AWS and Azure Databricks (serverless, so no cloud-specific instance types).
+# See docs/CLOUD_NOTES.md for the few differences (host URL, region, endpoint names).
+bundle:
+  name: cancer-registrar-app
+
+variables:
+  catalog:
+    description: Unity Catalog catalog for the demo. Override for your workspace.
+    default: cancer_registry_demo
+  bronze_schema:
+    description: Bronze (Clarity-style source) schema.
+    default: cancer_bronze
+  silver_schema:
+    description: Silver (per-case context) schema.
+    default: cancer_silver
+  gold_schema:
+    description: Gold (serving) schema.
+    default: cancer_gold
+  lakebase_project:
+    description: Lakebase Autoscaling project id (passed to setup/provision_lakebase.py).
+    default: cancer-registry
+  lakebase_endpoint:
+    description: >-
+      Lakebase endpoint resource name the app connects to. setup/provision_lakebase.py
+      prints the exact value for your project; update this if it differs.
+    default: projects/cancer-registry/branches/production/endpoints/primary
+  lakebase_app_schema:
+    description: Postgres schema the app service principal owns for OLTP state.
+    default: cancer_registry_app
+  classifier_endpoint:
+    description: >-
+      Batch-inference-capable serving endpoint for the reportability classifier (ai_query).
+      Claude endpoints do not support ai_query batch in all workspaces, so default to a
+      batch-capable foundation model. Swap per your cloud/region (see docs/CLOUD_NOTES.md).
+    default: databricks-meta-llama-3-3-70b-instruct
+  abstraction_endpoint:
+    description: >-
+      Serving endpoint for the NAACCR abstraction agent (per-request call, not ai_query
+      batch). Swap per your cloud/region availability.
+    default: databricks-claude-opus-5
+  app_name:
+    description: Databricks App name.
+    default: cancer-registrar-app
+  warehouse_id:
+    description: >-
+      SQL warehouse id the app uses for reference reads (Statement Execution API).
+      Set to an existing serverless warehouse in your workspace.
+    default: ""
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      # Set to YOUR workspace host.
+      #   AWS:   https://<name>.cloud.databricks.com
+      #   Azure: https://<name>.azuredatabricks.net
+      host: https://your-workspace.cloud.databricks.com

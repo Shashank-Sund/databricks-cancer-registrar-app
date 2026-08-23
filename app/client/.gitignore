@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# build output: `npm run build` writes to ../server/static (outside this dir),
+# which IS committed and served by FastAPI in production. Nothing to ignore here.
+
+# local env
+.env
+.env.local
+
+# logs
+npm-debug.log*
+*.log
+
+# editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# vite / ts
+.vite/
+*.tsbuildinfo

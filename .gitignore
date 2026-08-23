@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Node / Vite client tooling
+app/client/node_modules/
+**/*.tsbuildinfo
+
+# Databricks Asset Bundle local state
+**/.databricks/
+
+# Local env / secrets
+.env
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NOTE: app/server/static/ (prebuilt React client) IS committed on purpose so the
+#       app can deploy without a Node build. sample_data/*.parquet IS committed too.

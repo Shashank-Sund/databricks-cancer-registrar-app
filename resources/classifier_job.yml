@@ -1,0 +1,23 @@
+# Reportability classifier: ai_query batch over silver_case_context -> gold_flagged.
+# Uses a batch-capable serving endpoint (default Llama-3.3-70B; Claude does not support
+# ai_query batch in all workspaces). Serverless. Run after silver is populated.
+resources:
+  jobs:
+    classifier:
+      name: "cancer-registrar-app - Reportability Classifier"
+      description: "ai_query classifier over silver_case_context writing the flagged queue (gold_flagged)."
+      tasks:
+        - task_key: classify
+          spark_python_task:
+            python_file: ../lakehouse/run_sql.py
+            parameters:
+              - "sql_file=../ml/classifier/run_classifier.sql"
+              - "catalog=${var.catalog}"
+              - "gold_schema=${var.gold_schema}"
+              - "silver_schema=${var.silver_schema}"
+              - "classifier_endpoint=${var.classifier_endpoint}"
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            client: "3"
