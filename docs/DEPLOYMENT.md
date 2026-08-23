@@ -152,12 +152,17 @@ cd app/client && npm ci && npm run build   # writes to ../server/static
   `--warehouse-id` and `--app-sp`, or grant it directly:
   `GRANT USE CATALOG ON CATALOG <cat> TO \`<app_sp>\``, then `GRANT USE SCHEMA, SELECT ON
   SCHEMA <cat>.<gold_schema> TO \`<app_sp>\`` (and the silver schema).
-- **App store stays `memory` / `store` shows an endpoint or role error.** On a BRAND-NEW
-  Lakebase Autoscaling project, the headless `databricks_create_role` helper may not be
-  available yet, so the SP grant cannot create the SP's Postgres role. Either add the
-  Lakebase database to the app as a resource in the Apps UI (this auto-provisions the SP
-  role), or reuse an existing project whose role helper is present. Data is isolated by
-  the app schema (`lakebase_app_schema`), so multiple apps can safely share one project.
+- **App store stays `memory` / cannot connect to a BRAND-NEW Lakebase project.** Attaching
+  the app service principal to a Lakebase Autoscaling project is only supported through the
+  Apps UI today: open the app, Add resource -> Database, and select the Lakebase database.
+  That step auto-provisions the SP's Postgres role. Headless provisioning is not available
+  for a freshly created autoscale project (the `databricks_create_role` SQL helper is not
+  present on it, `databricks postgres` has no create-role command, and the DABs app
+  `database` resource targets provisioned Lakebase instances only). After the UI binding,
+  set `lakebase_endpoint` to that project's endpoint, redeploy, and restart the app so it
+  creates its schema + tables there. Because data is isolated by the app schema
+  (`lakebase_app_schema`), multiple apps can also safely SHARE one existing project whose
+  SP role helper is already present, which needs no UI step.
 - **Serverless only.** These jobs use serverless compute (no instance types). If your
   workspace lacks serverless, enable it.
 - **`ai_query` fails on the classifier.** The endpoint must support batch inference.
