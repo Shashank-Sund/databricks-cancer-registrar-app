@@ -5,9 +5,10 @@
 # backend. Fully portable: nothing workspace-specific is baked into the source.
 #
 # All deployment-specific configuration is injected here via config.env, which
-# the bundle templates at deploy time (${var.*} and ${resources...} references).
-# The app's source app.yaml carries only the portable startup command; the
-# config block below supplies the command AND env, and takes precedence.
+# the bundle templates at deploy time (${var.*} references). This is the ONLY
+# place the app is configured: there is deliberately NO app.yaml under app/server,
+# because a source app.yaml OVERRIDES this block (and would silently blank the env,
+# breaking the warehouse reads and Lakebase). Verified on a live deploy.
 #
 # Env flow (config.py reads these exact names):
 #   REGISTRY_CATALOG        <- ${var.catalog}              (workspace catalog)
@@ -16,7 +17,7 @@
 #   LAKEBASE_ENDPOINT       <- ${var.lakebase_endpoint}    (Postgres host auto-resolves from this)
 #   LAKEBASE_SCHEMA         <- ${var.lakebase_app_schema}  (app-owned native schema)
 #   DATABRICKS_WAREHOUSE_ID <- value_from the bound sql_warehouse resource
-#   ABSTRACTION_JOB_ID      <- ${resources.jobs.abstraction.id} (the deployed abstraction job)
+#   ABSTRACTION_JOB_ID      <- value_from the bound abstraction_job resource
 #
 # Resource bindings also grant the app service principal the permissions it
 # needs: CAN_USE on the warehouse (Statement Execution reads) and CAN_MANAGE_RUN
@@ -55,8 +56,10 @@ resources:
           - name: "LAKEBASE_SCHEMA"
             value: ${var.lakebase_app_schema}
           # ---- Abstraction Lakeflow Job (triggered on a "reportable" triage) ----
+          # value_from the bound job resource: a ${resources.jobs...id} literal in an
+          # app env value does not resolve, but value_from injects the deployed job id.
           - name: "ABSTRACTION_JOB_ID"
-            value: ${resources.jobs.abstraction.id}
+            value_from: "abstraction_job"
 
       resources:
         # Grants the app service principal CAN_USE on the warehouse and injects

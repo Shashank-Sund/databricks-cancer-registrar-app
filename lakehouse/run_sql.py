@@ -19,7 +19,11 @@ if "sql_file" not in args:
     raise SystemExit("run_sql.py requires sql_file=<path>")
 sql_file = args.pop("sql_file")
 if not os.path.isabs(sql_file):
-    sql_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), sql_file)
+    try:
+        _self = __file__
+    except NameError:  # a serverless spark_python_task runs the file via exec(); no __file__
+        _self = sys.argv[0]
+    sql_file = os.path.join(os.path.dirname(os.path.abspath(_self)), sql_file)
 
 spark = SparkSession.builder.getOrCreate()
 

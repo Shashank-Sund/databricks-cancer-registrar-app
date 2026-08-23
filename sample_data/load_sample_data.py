@@ -25,7 +25,11 @@ WANT = args.get("tables", "all")
 want = None if WANT == "all" else {t.strip() for t in WANT.split(",") if t.strip()}
 
 spark = SparkSession.builder.getOrCreate()
-BASE = os.path.dirname(os.path.abspath(__file__))  # sample_data/
+try:
+    _self = __file__
+except NameError:  # a serverless spark_python_task runs the file via exec(); no __file__
+    _self = sys.argv[0]
+BASE = os.path.dirname(os.path.abspath(_self))  # sample_data/
 
 # (layer_dir, target_schema, table)
 PLAN = (

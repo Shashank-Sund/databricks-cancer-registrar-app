@@ -49,6 +49,22 @@ def resolve_host(w: WorkspaceClient, endpoint_name: str) -> str:
     return getattr(hosts, "host", None) or str(hosts)
 
 
+def resolve_endpoint(w: WorkspaceClient, project: str, branch: str) -> str:
+    """Return the endpoint resource name for the branch. A freshly created project may
+    not name its default endpoint 'primary', so discover it; fall back to the
+    conventional path if listing is unavailable."""
+    fallback = f"projects/{project}/branches/{branch}/endpoints/primary"
+    try:
+        eps = list(w.postgres.list_endpoints(parent=f"projects/{project}/branches/{branch}"))
+        for e in eps:
+            name = getattr(e, "name", None)
+            if name:
+                return name
+    except Exception as ex:
+        print(f"list_endpoints note: {type(ex).__name__}: {str(ex)[:100]}")
+    return fallback
+
+
 def ensure_project(w: WorkspaceClient, project: str) -> None:
     from databricks.sdk.service.postgres import Project, ProjectSpec
 
@@ -65,6 +81,27 @@ def ensure_project(w: WorkspaceClient, project: str) -> None:
     )
     op.wait()
     print("project created")
+
+
+def grant_uc_access(w, warehouse_id, catalog, gold_schema, silver_schema, sp):
+    """Grant the app service principal the Unity Catalog privileges it needs to READ
+    reference/PHI data through the SQL warehouse (USE CATALOG + USE SCHEMA + SELECT on
+    the gold and silver schemas). Without this the app's warehouse queries fail and the
+    queue returns a 500. Run as SQL through the warehouse (reliable across SDK versions)."""
+    if not warehouse_id:
+        print("no --warehouse-id given; SKIPPING UC grants (grant them manually, see docs/DEPLOYMENT.md)")
+        return
+    stmts = [
+        f"GRANT USE CATALOG ON CATALOG {catalog} TO `{sp}`",
+        f"GRANT USE SCHEMA, SELECT ON SCHEMA {catalog}.{gold_schema} TO `{sp}`",
+        f"GRANT USE SCHEMA, SELECT ON SCHEMA {catalog}.{silver_schema} TO `{sp}`",
+    ]
+    for s in stmts:
+        try:
+            w.statement_execution.execute_statement(warehouse_id=warehouse_id, statement=s, wait_timeout="30s")
+            print("OK:", s)
+        except Exception as e:
+            print(f"UC grant note ({s[:46]}...): {type(e).__name__}: {str(e)[:100]}")
 
 
 def grant_app_sp(w, endpoint, host, dbname, sp):
@@ -141,6 +178,8 @@ def main():
     p.add_argument("--branch", default="production")
     p.add_argument("--catalog", required=True)
     p.add_argument("--gold-schema", default="cancer_gold")
+    p.add_argument("--silver-schema", default="cancer_silver")
+    p.add_argument("--warehouse-id", default=None, help="SQL warehouse id (for the app SP's UC grants)")
     p.add_argument("--app-sp", default=None, help="App service principal client id (for grants)")
     p.add_argument("--app-schema", default="cancer_registry_app")
     p.add_argument("--dbname", default="databricks_postgres")
@@ -153,15 +192,16 @@ def main():
     if args.create_project:
         ensure_project(w, args.project)
 
-    endpoint = f"projects/{args.project}/branches/{args.branch}/endpoints/primary"
+    endpoint = resolve_endpoint(w, args.project, args.branch)
     host = resolve_host(w, endpoint)
     print(f"endpoint={endpoint}\nhost={host}")
     print(">>> Set the bundle variable lakebase_endpoint to the value above if it differs.")
 
     if args.app_sp:
+        grant_uc_access(w, args.warehouse_id, args.catalog, args.gold_schema, args.silver_schema, args.app_sp)
         grant_app_sp(w, endpoint, host, args.dbname, args.app_sp)
     else:
-        print("no --app-sp given; skipping SP grant (run again with it after the app is deployed)")
+        print("no --app-sp given; skipping SP grants (run again with it after the app is deployed)")
 
     if not args.skip_synced:
         create_synced_tables(w, args.catalog, args.gold_schema, args.branch, args.project)

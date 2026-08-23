@@ -68,21 +68,30 @@ Loads the shipped sample dataset so you can click through the whole app immediat
 
 ```bash
 databricks bundle deploy -t dev
+databricks bundle run registrar_app -t dev             # start + deploy the app (deploy alone leaves it stopped)
 databricks bundle run load_sample_data -t dev          # loads 15 tables from sample_data/
-python setup/provision_lakebase.py --catalog <your_catalog> --app-sp <app_sp_id>
-# open the app (URL printed on its page in the workspace)
+# grant the app SP (id is on the app's page) + provision Lakebase:
+python setup/provision_lakebase.py --create-project \
+  --catalog <your_catalog> --gold-schema cancer_gold --silver-schema cancer_silver \
+  --warehouse-id <your_warehouse_id> --app-sp <app_sp_id> --app-schema cancer_registry_app
+databricks apps stop cancer-registrar-app && databricks apps start cancer-registrar-app  # pick up Lakebase
+# open the app (URL on its page); GET /api/health should show "store":"lakebase"
 ```
 
 ### Path B: Full pipeline (regenerate everything)
 
 ```bash
 databricks bundle deploy -t dev
+databricks bundle run registrar_app -t dev             # start + deploy the app
 databricks bundle run setup -t dev                     # schemas + tables + dictionary + code lookup
 databricks bundle run synthetic_data -t dev            # ~200 synthetic patients -> Bronze
 databricks bundle run silver -t dev                    # Lakeflow SDP: Bronze -> Silver
 databricks bundle run classifier -t dev                # ai_query -> gold_flagged
-python setup/provision_lakebase.py --catalog <your_catalog> --app-sp <app_sp_id>
-# open the app; triaging a case YES triggers the abstraction job live
+python setup/provision_lakebase.py --create-project \
+  --catalog <your_catalog> --gold-schema cancer_gold --silver-schema cancer_silver \
+  --warehouse-id <your_warehouse_id> --app-sp <app_sp_id> --app-schema cancer_registry_app
+databricks apps stop cancer-registrar-app && databricks apps start cancer-registrar-app
+# open the app; triaging a case reportable triggers the abstraction job live
 ```
 
 ---
