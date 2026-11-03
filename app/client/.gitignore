@@ -21,3 +21,10 @@ npm-debug.log*
 # vite / ts
 .vite/
 *.tsbuildinfo
+
+# public demo build (`npm run build:demo`) and Playwright output
+dist-demo/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

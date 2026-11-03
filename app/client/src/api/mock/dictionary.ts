@@ -16,6 +16,7 @@ import type {
   SourceRef,
   ValidValue,
 } from '@/types/api';
+import { IS_STATIC_DEMO } from '@/lib/demo';
 
 export interface DictEntry {
   naaccr_item_id: number;
@@ -27,6 +28,8 @@ export interface DictEntry {
   valid_values: ValidValue[] | null;
   unknown_code: string | null;
   description?: string;
+  /** Searchable code-lookup system (public demo build only, see below). */
+  lookup?: string;
   demo: {
     value: string | null;
     confidence: number | null;
@@ -536,5 +539,18 @@ export const DICTIONARY: DictEntry[] = [
     demo: { value: null, confidence: null, status: 'blank', source: null },
   },
 ];
+
+// Public demo build only: add one field backed by a searchable code lookup (the
+// real backend does this for FIPS county), so the typeahead is reachable in the
+// hosted demo. Removed entirely from the default build.
+if (IS_STATIC_DEMO) {
+  DICTIONARY.splice(DICTIONARY.findIndex((d) => d.naaccr_item_id === 80) + 1, 0, {
+    naaccr_item_id: 90, item_name: 'countyAtDx', label: 'County at DX',
+    section: 'Demographics', data_type: 'coded', required: false,
+    valid_values: null, unknown_code: '999', lookup: 'fips_county',
+    description: 'FIPS county code of residence at diagnosis.',
+    demo: { value: null, confidence: null, status: 'blank', source: null },
+  });
+}
 
 export const FIELDS_TOTAL = DICTIONARY.length;

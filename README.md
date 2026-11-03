@@ -7,6 +7,9 @@ authoritative at every decision**. The demo focuses on **breast cancer** and the
 **202 authentic NAACCR v25** breast-abstract data items. All data shipped here is
 **synthetic** (no PHI).
 
+**Live demo:** <https://d1mkxj720jcond.cloudfront.net/>. This is the review app running on
+made-up data in your browser. There is no backend, and changes reset when you reload.
+
 Everything is config-driven (catalog, schemas, endpoints, and app name are Databricks
 Asset Bundle variables), Unity Catalog native, and **serverless**, so it runs on both
 **AWS and Azure Databricks** with only a handful of documented differences (see
@@ -112,6 +115,33 @@ service principal), so you do not create those by hand.
 
 ---
 
+## Static demo
+
+The public demo is the same React app built in mock mode (`app/client/.env.demo`),
+hosted on a private S3 bucket behind CloudFront. It has a demo banner, uses only
+synthetic data and makes no network calls beyond its own files. The real Databricks
+build (`npm run build`, committed to `app/server/static/`) contains none of the demo code.
+
+```bash
+cd app/client
+npm ci
+npm run build:demo            # writes dist-demo/
+npm run e2e                   # Playwright + axe smoke test against dist-demo
+# PW_CHANNEL=chrome npm run e2e uses your installed Chrome instead
+# BASE_URL=https://<your-distribution>.cloudfront.net npm run e2e tests a deployed copy
+
+cd ../..
+scripts/deploy-demo.sh        # build, scan, deploy infra/static-demo.yaml, upload, invalidate
+scripts/teardown-demo.sh      # empty the bucket and delete the stack
+```
+
+`deploy-demo.sh` scans the bundle with `scripts/scan-public.sh` before uploading, and
+reads a private blocklist (`BLOCKLIST`, default `~/.config/edip/blocklist.txt`). A shared
+monthly cost budget for all demos lives in `infra/budget.yaml` (deploy it once with
+`--parameter-overrides AlertEmail=<your address>`).
+
+---
+
 ## Repository layout
 
 | Path | What it holds |
@@ -126,6 +156,7 @@ service principal), so you do not create those by hand.
 | `setup/` | `provision_lakebase.py` (project + synced tables + CDF + SP grant) |
 | `app/client/` | React 18 + TypeScript + Vite + Tailwind + shadcn/ui frontend |
 | `app/server/` | FastAPI backend (serves the built client + the `/api`); prebuilt `static/` is committed |
+| `infra/`, `scripts/` | Public static demo: CloudFormation (S3 + CloudFront, budget) and deploy, teardown and scan scripts |
 | `resources/` | DABs resources: the jobs, the silver pipeline, and the app |
 | `sample_data/` | Shipped Parquet: 10 Bronze tables + `silver_case_context` + 4 gold tables |
 | `docs/` | Deployment guide, concepts primer, cloud notes |

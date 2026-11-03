@@ -1,11 +1,13 @@
+import * as React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Moon, Sun, ShieldCheck } from 'lucide-react';
+import { Menu, Moon, Sun, ShieldCheck } from 'lucide-react';
 import { useUiStore } from '@/store/uiStore';
 import { useMe } from '@/hooks/queries';
 import { branding } from '@/lib/branding';
 import { initials } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { USE_MOCK } from '@/api/client';
+import { MOBILE_NAV_ID } from './Sidebar';
 
 function ThemeToggle() {
   const theme = useUiStore((s) => s.theme);
@@ -32,21 +34,40 @@ function areaLabel(pathname: string): string {
   return 'Triage queue';
 }
 
-export function TopBar() {
+interface TopBarProps {
+  navOpen: boolean;
+  onOpenNav: () => void;
+  menuButtonRef: React.Ref<HTMLButtonElement>;
+}
+
+export function TopBar({ navOpen, onOpenNav, menuButtonRef }: TopBarProps) {
   const { pathname } = useLocation();
   const { data: me } = useMe();
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-border bg-card/60 px-5 backdrop-blur">
-      <div className="flex items-center gap-2 text-sm">
-        <span className="font-medium text-foreground">{branding.product}</span>
+    <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card/60 px-3 backdrop-blur md:gap-4 md:px-5">
+      <div className="flex min-w-0 items-center gap-2 text-sm">
+        {/* Phone/tablet: the sidebar lives in a drawer behind this button. */}
+        <Button
+          ref={menuButtonRef}
+          variant="ghost"
+          size="icon-sm"
+          className="shrink-0 md:hidden"
+          onClick={onOpenNav}
+          aria-label="Open navigation"
+          aria-expanded={navOpen}
+          aria-controls={MOBILE_NAV_ID}
+        >
+          <Menu className="h-5 w-5" aria-hidden="true" />
+        </Button>
+        <span className="truncate font-medium text-foreground">{branding.product}</span>
         <span className="text-muted-foreground" aria-hidden="true">
           /
         </span>
-        <span className="text-muted-foreground">{areaLabel(pathname)}</span>
+        <span className="truncate text-muted-foreground">{areaLabel(pathname)}</span>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         {USE_MOCK && (
           <span
             className="hidden items-center gap-1 rounded-full border border-warning/40 bg-warning-soft px-2 py-0.5 text-2xs font-medium text-warning sm:inline-flex"

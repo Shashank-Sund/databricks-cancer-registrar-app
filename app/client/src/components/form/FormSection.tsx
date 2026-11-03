@@ -39,7 +39,7 @@ export function FormSection({
     <section className="rounded-lg border border-border bg-card">
       <div
         className={cn(
-          'flex items-center gap-2 rounded-t-lg bg-muted/30 px-3 py-2',
+          'flex flex-wrap items-center gap-2 rounded-t-lg bg-muted/30 px-3 py-2',
           expanded ? 'border-b border-border' : 'rounded-b-lg',
         )}
       >
@@ -49,7 +49,7 @@ export function FormSection({
           onClick={() => toggle(section.section)}
           aria-expanded={expanded}
           aria-controls={regionId}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-w-[12rem] flex-1 items-center gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronDown
             className={cn(
@@ -58,7 +58,7 @@ export function FormSection({
             )}
             aria-hidden="true"
           />
-          <h2 className="truncate text-sm font-semibold text-card-foreground">
+          <h2 className="min-w-0 text-sm font-semibold text-card-foreground sm:truncate">
             {section.section}
           </h2>
           <span className="tabular whitespace-nowrap text-2xs text-muted-foreground">
@@ -101,7 +101,7 @@ export function FormSection({
       </div>
 
       {expanded && (
-        <div id={regionId} className="grid gap-x-5 gap-y-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div id={regionId} className="grid grid-cols-1 gap-x-5 gap-y-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
           {section.fields.map((f) => (
             <FieldRow
               key={f.naaccr_item_id}

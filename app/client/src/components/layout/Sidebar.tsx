@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   ClipboardList,
@@ -20,20 +21,19 @@ const NAV = [
   { to: '/getting-started', label: 'Getting Started', Icon: BookOpen, end: false },
 ];
 
-export function Sidebar() {
-  const collapsed = useUiStore((s) => s.sidebarCollapsed);
-  const toggle = useUiStore((s) => s.toggleSidebar);
+/** Brand, nav, live drafts and (desktop only) the collapse toggle. */
+function SidebarBody({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle?: () => void;
+}) {
   const { data } = useDrafts();
   const draftCount = data?.items.length ?? 0;
 
   return (
-    <aside
-      className={cn(
-        'flex h-full shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200',
-        collapsed ? 'w-16' : 'w-64',
-      )}
-      aria-label="Primary"
-    >
+    <>
       {/* Brand */}
       <div className="flex h-14 items-center gap-2.5 border-b border-border px-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -97,26 +97,89 @@ export function Sidebar() {
       )}
       {collapsed && <div className="flex-1" />}
 
-      {/* Collapse toggle */}
-      <div className="border-t border-border p-2">
-        <Button
-          variant="ghost"
-          size={collapsed ? 'icon' : 'sm'}
-          onClick={toggle}
-          className={cn('w-full', !collapsed && 'justify-start')}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-pressed={collapsed}
-        >
-          {collapsed ? (
-            <PanelLeftOpen className="h-5 w-5" aria-hidden="true" />
-          ) : (
-            <>
-              <PanelLeftClose className="h-5 w-5" aria-hidden="true" />
-              <span>Collapse</span>
-            </>
-          )}
-        </Button>
-      </div>
-    </aside>
+      {/* Collapse toggle (desktop rail only) */}
+      {onToggle && (
+        <div className="border-t border-border p-2">
+          <Button
+            variant="ghost"
+            size={collapsed ? 'icon' : 'sm'}
+            onClick={onToggle}
+            className={cn('w-full', !collapsed && 'justify-start')}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-pressed={collapsed}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <>
+                <PanelLeftClose className="h-5 w-5" aria-hidden="true" />
+                <span>Collapse</span>
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+    </>
+  );
+}
+
+export const MOBILE_NAV_ID = 'mobile-nav';
+
+interface SidebarProps {
+  /** Phone/tablet drawer state (below the md breakpoint). */
+  mobileOpen: boolean;
+  onMobileClose: () => void;
+}
+
+export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
+  const collapsed = useUiStore((s) => s.sidebarCollapsed);
+  const toggle = useUiStore((s) => s.toggleSidebar);
+  const drawerRef = React.useRef<HTMLElement>(null);
+
+  // Drawer: Escape closes; focus moves into it on open.
+  React.useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onMobileClose();
+    };
+    document.addEventListener('keydown', onKey);
+    drawerRef.current?.querySelector<HTMLElement>('a[href]')?.focus();
+    return () => document.removeEventListener('keydown', onKey);
+  }, [mobileOpen, onMobileClose]);
+
+  return (
+    <>
+      {/* Desktop rail (md and up). */}
+      <aside
+        className={cn(
+          'hidden h-full shrink-0 flex-col border-r border-border bg-card transition-[width] duration-200 md:flex',
+          collapsed ? 'w-16' : 'w-64',
+        )}
+        aria-label="Primary"
+      >
+        <SidebarBody collapsed={collapsed} onToggle={toggle} />
+      </aside>
+
+      {/* Phone/tablet overlay drawer (below md). */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Close navigation"
+            className="absolute inset-0 h-full w-full bg-foreground/40"
+            onClick={onMobileClose}
+          />
+          <aside
+            ref={drawerRef}
+            id={MOBILE_NAV_ID}
+            aria-label="Primary"
+            className="relative flex h-full w-64 max-w-[85vw] flex-col border-r border-border bg-card shadow-lg"
+          >
+            <SidebarBody collapsed={false} />
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

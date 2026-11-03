@@ -65,7 +65,7 @@ export const FieldRow = React.memo(function FieldRow({
     : '';
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1">
       <div className="flex items-baseline justify-between gap-2">
         <div className="flex min-w-0 items-baseline gap-1">
           <label
@@ -109,7 +109,7 @@ export const FieldRow = React.memo(function FieldRow({
             />
           )}
         </div>
-        <span className="tabular shrink-0 text-2xs text-muted-foreground/70" title={field.item_name}>
+        <span className="tabular shrink-0 text-2xs text-muted-foreground" title={field.item_name}>
           #{field.naaccr_item_id}
         </span>
       </div>
