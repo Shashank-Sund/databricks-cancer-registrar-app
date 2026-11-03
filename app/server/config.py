@@ -84,7 +84,7 @@ LAKEBASE_SCHEMA = _env("LAKEBASE_SCHEMA", "public")
 # ---- Auth / identity -----------------------------------------------------
 # Fallback registrar used only when no Apps OAuth headers and no CLI identity
 # are available (pure local smoke tests).
-FALLBACK_REGISTRAR = _env("FALLBACK_REGISTRAR", "registrar@demo-health.org")
+FALLBACK_REGISTRAR = _env("FALLBACK_REGISTRAR", "registrar@example.org")
 
 # Optional CLI profile for local development (ignored in the deployed app).
 DATABRICKS_PROFILE = os.environ.get("DATABRICKS_CONFIG_PROFILE") or os.environ.get(

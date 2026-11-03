@@ -33,7 +33,7 @@ import { IS_STATIC_DEMO } from '@/lib/demo';
 
 const CURRENT_USER: Me = {
   // The public demo uses a reserved example domain (RFC 2606).
-  email: IS_STATIC_DEMO ? 'registrar@example.org' : 'registrar@demo-health.org',
+  email: 'registrar@example.org',
   display_name: 'Dana Reyes, CTR',
 };
 
