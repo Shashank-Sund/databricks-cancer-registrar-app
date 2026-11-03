@@ -101,7 +101,7 @@ export function FormSection({
       </div>
 
       {expanded && (
-        <div id={regionId} className="grid gap-x-5 gap-y-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div id={regionId} className="grid grid-cols-1 gap-x-5 gap-y-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
           {section.fields.map((f) => (
             <FieldRow
               key={f.naaccr_item_id}

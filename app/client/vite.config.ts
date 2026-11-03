@@ -1,12 +1,29 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 // The FastAPI backend (app/server) implements contracts/api_contract.md.
 // In dev we proxy /api to it if it is running; otherwise the app uses the
 // in-memory mock (VITE_USE_MOCK=true by default, see src/api/client.ts).
-export default defineConfig({
-  plugins: [react()],
+// Public demo build only (`npm run build:demo`, mode "demo"): add a favicon so
+// the hosted page does not request a missing /favicon.ico. The default build
+// is untouched, so app/server/static stays byte-identical.
+function demoFavicon(): Plugin {
+  return {
+    name: 'demo-favicon',
+    transformIndexHtml: () => [
+      {
+        tag: 'link',
+        attrs: { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        injectTo: 'head',
+      },
+    ],
+  };
+}
+
+export default defineConfig(({ mode }) => ({
+  plugins: mode === 'demo' ? [react(), demoFavicon()] : [react()],
+  publicDir: mode === 'demo' ? 'demo-public' : 'public',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -42,4 +59,4 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: false,
   },
-});
+}));

@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatClock, formatDate, ageFromDob } from '@/lib/format';
+import { IS_STATIC_DEMO } from '@/lib/demo';
 
 const ALL = '__all__';
 
@@ -155,6 +156,29 @@ export function CaseFormPage() {
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-64 w-full" />
         <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (IS_STATIC_DEMO && (isError || !form)) {
+    // Public demo: state lives in memory, so a deep link or a reload can point
+    // at a case this session never opened. Explain that instead of an error.
+    return (
+      <div className="mx-auto max-w-2xl p-5">
+        <div
+          role="status"
+          data-testid="case-not-in-session"
+          className="rounded-lg border border-warning/40 bg-warning-soft p-4 text-sm text-foreground"
+        >
+          <p className="font-semibold">This case is not in this demo session</p>
+          <p className="mt-1 text-muted-foreground">
+            Demo data lives only in this browser tab and resets on reload. Open a case from
+            the queue (choose Reportable) or from My Drafts to review it.
+          </p>
+        </div>
+        <Link to="/" className="mt-3 inline-block text-sm text-primary hover:underline">
+          Back to queue
+        </Link>
       </div>
     );
   }

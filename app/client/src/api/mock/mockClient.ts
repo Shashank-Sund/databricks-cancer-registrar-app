@@ -29,9 +29,11 @@ import type {
 import { DICTIONARY, FIELDS_TOTAL, SECTIONS_ORDER } from './dictionary';
 import { QUEUE_SEED, PRESEEDED_DRAFT_IDS } from './cases';
 import { finishBlocking, runEdits, type WorkingValue } from './editsEngine';
+import { IS_STATIC_DEMO } from '@/lib/demo';
 
 const CURRENT_USER: Me = {
-  email: 'registrar@demo-health.org',
+  // The public demo uses a reserved example domain (RFC 2606).
+  email: IS_STATIC_DEMO ? 'registrar@example.org' : 'registrar@demo-health.org',
   display_name: 'Dana Reyes, CTR',
 };
 
@@ -218,6 +220,16 @@ function assembleForm(caseId: string): CaseForm {
     });
     return { section, fields };
   }).filter((s) => s.fields.length > 0);
+
+  // Public demo build only: expose the demo lookup field (see dictionary.ts).
+  if (IS_STATIC_DEMO) {
+    for (const s of sections) {
+      for (const f of s.fields) {
+        const lookup = dictById.get(f.naaccr_item_id)?.lookup;
+        if (lookup) f.lookup = lookup;
+      }
+    }
+  }
 
   return {
     case_id: caseId,

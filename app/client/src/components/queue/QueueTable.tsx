@@ -23,6 +23,7 @@ import { InfoTooltip } from '@/components/ui/tooltip';
 import { Spinner } from '@/components/ui/skeleton';
 import { formatDate, ageFromDob } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 interface Props {
   items: QueueItem[];
@@ -32,7 +33,169 @@ interface Props {
   pendingId: string | null;
 }
 
-export function QueueTable({ items, sort, onSortToggle, onTriage, pendingId }: Props) {
+// Below the md breakpoint the queue renders as stacked cards so every triage
+// button stays on screen; md and up keep the table.
+export function QueueTable(props: Props) {
+  const wide = useMediaQuery('(min-width: 768px)');
+  return wide ? <QueueGrid {...props} /> : <QueueCards {...props} />;
+}
+
+function Rationale({ item }: { item: QueueItem }) {
+  return (
+    <>
+      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+        <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+        Classifier rationale
+      </div>
+      <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">
+        {item.classifier_rationale}
+      </p>
+      {item.key_codes.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <span className="text-2xs uppercase tracking-wide text-muted-foreground">
+            Key codes
+          </span>
+          {item.key_codes.map((code) => (
+            <Badge key={code} variant="outline" className="tabular">
+              {code}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+function TriageButtons({
+  item,
+  pending,
+  onTriage,
+  className,
+}: {
+  item: QueueItem;
+  pending: boolean;
+  onTriage: Props['onTriage'];
+  className?: string;
+}) {
+  if (pending) {
+    return (
+      <div className={cn('flex items-center gap-2', className)}>
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Spinner className="h-4 w-4" />
+          Saving…
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className={cn('flex items-center gap-2', className)}>
+      <Button
+        variant="success"
+        size="sm"
+        className="flex-1 md:flex-initial"
+        data-testid={`triage-reportable-${item.case_id}`}
+        onClick={() => onTriage(item.case_id, 'reportable')}
+      >
+        <Check aria-hidden="true" />
+        Reportable
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="flex-1 md:flex-initial"
+        data-testid={`triage-not-reportable-${item.case_id}`}
+        onClick={() => onTriage(item.case_id, 'not_reportable')}
+      >
+        <X aria-hidden="true" />
+        Not reportable
+      </Button>
+    </div>
+  );
+}
+
+function QueueCards({ items, sort, onSortToggle, onTriage, pendingId }: Props) {
+  const [open, setOpen] = React.useState<Record<string, boolean>>({});
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid="queue-sort-score"
+          onClick={onSortToggle}
+          aria-label={`Sort by reportability score, currently ${
+            sort === 'score_asc' ? 'ascending' : 'descending'
+          }`}
+        >
+          <ArrowUpDown aria-hidden="true" />
+          Reportability
+        </Button>
+      </div>
+      <ul className="space-y-3" role="list" aria-label="Triage queue">
+        {items.map((c) => {
+          const age = ageFromDob(c.date_of_birth);
+          const isOpen = !!open[c.case_id];
+          return (
+            <li
+              key={c.case_id}
+              data-testid={`queue-card-${c.case_id}`}
+              className="rounded-lg border border-border bg-card p-3"
+            >
+              <div className="flex items-start gap-2">
+                <button
+                  type="button"
+                  data-testid={`queue-expand-${c.case_id}`}
+                  onClick={() => setOpen((o) => ({ ...o, [c.case_id]: !o[c.case_id] }))}
+                  className="-ml-1 shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-expanded={isOpen}
+                  aria-label={
+                    isOpen
+                      ? `Hide rationale for ${c.patient_name}`
+                      : `Show rationale for ${c.patient_name}`
+                  }
+                >
+                  {isOpen ? (
+                    <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-foreground">{c.patient_name}</p>
+                  <p className="tabular truncate text-2xs text-muted-foreground">
+                    {c.case_id} · {c.patient_mrn} · {c.sex}
+                    {age !== null ? ` · ${age}y` : ''}
+                  </p>
+                  <p className="mt-1.5 text-sm text-foreground">{c.primary_diagnosis_desc}</p>
+                  <p className="tabular text-2xs text-muted-foreground">
+                    {c.primary_diagnosis_code} · Dx {formatDate(c.diagnosis_date)}
+                  </p>
+                  <div className="mt-2 space-y-1.5" data-testid="queue-label">
+                    <ScoreBadge label={c.reportability_label} score={c.reportability_score} />
+                    <ScoreMeter label={c.reportability_label} score={c.reportability_score} />
+                  </div>
+                </div>
+              </div>
+              {isOpen && (
+                <div className="mt-3 rounded-md border border-border bg-muted/20 p-3">
+                  <Rationale item={c} />
+                </div>
+              )}
+              <TriageButtons
+                item={c}
+                pending={pendingId === c.case_id}
+                onTriage={onTriage}
+                className="mt-3"
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function QueueGrid({ items, sort, onSortToggle, onTriage, pendingId }: Props) {
   const [expanded, setExpanded] = React.useState<ExpandedState>({});
 
   const columns = React.useMemo<ColumnDef<QueueItem>[]>(
@@ -152,41 +315,14 @@ export function QueueTable({ items, sort, onSortToggle, onTriage, pendingId }: P
       {
         id: 'actions',
         header: () => <span className="sr-only">Triage decision</span>,
-        cell: ({ row }) => {
-          const c = row.original;
-          const pending = pendingId === c.case_id;
-          return (
-            <div className="flex items-center justify-end gap-2">
-              {pending ? (
-                <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Spinner className="h-4 w-4" />
-                  Saving…
-                </span>
-              ) : (
-                <>
-                  <Button
-                    variant="success"
-                    size="sm"
-                    data-testid={`triage-reportable-${c.case_id}`}
-                    onClick={() => onTriage(c.case_id, 'reportable')}
-                  >
-                    <Check aria-hidden="true" />
-                    Reportable
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    data-testid={`triage-not-reportable-${c.case_id}`}
-                    onClick={() => onTriage(c.case_id, 'not_reportable')}
-                  >
-                    <X aria-hidden="true" />
-                    Not reportable
-                  </Button>
-                </>
-              )}
-            </div>
-          );
-        },
+        cell: ({ row }) => (
+          <TriageButtons
+            item={row.original}
+            pending={pendingId === row.original.case_id}
+            onTriage={onTriage}
+            className="justify-end"
+          />
+        ),
       },
     ],
     [onSortToggle, onTriage, pendingId, sort],
@@ -250,25 +386,7 @@ export function QueueTable({ items, sort, onSortToggle, onTriage, pendingId }: P
                 <tr className="border-b border-border bg-muted/20">
                   <td colSpan={row.getVisibleCells().length} className="px-3 pb-4 pt-1">
                     <div className="ml-8 max-w-3xl rounded-md border border-border bg-card p-3">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                        <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                        Classifier rationale
-                      </div>
-                      <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">
-                        {row.original.classifier_rationale}
-                      </p>
-                      {row.original.key_codes.length > 0 && (
-                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                          <span className="text-2xs uppercase tracking-wide text-muted-foreground">
-                            Key codes
-                          </span>
-                          {row.original.key_codes.map((code) => (
-                            <Badge key={code} variant="outline" className="tabular">
-                              {code}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
+                      <Rationale item={row.original} />
                     </div>
                   </td>
                 </tr>
