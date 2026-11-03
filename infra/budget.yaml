@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Shared monthly cost budget for every public demo (resources tagged
+  project=public-demos). Email alerts at 80% actual and 100% forecasted.
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Description: Address that receives budget alerts.
+  MonthlyLimitUsd:
+    Type: Number
+    Default: 5
+
+Resources:
+  PublicDemosBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: public-demos-monthly
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyLimitUsd
+          Unit: USD
+        CostFilters:
+          TagKeyValue:
+            - 'user:project$public-demos'
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref AlertEmail
+
+Outputs:
+  BudgetName:
+    Value: public-demos-monthly
