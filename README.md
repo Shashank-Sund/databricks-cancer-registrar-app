@@ -150,10 +150,11 @@ service principal), so you do not create those by hand.
 - **Human in the loop.** The AI proposes; a registrar decides. Gate 1 is the reportable
   yes/no triage; gate 2 is the finish gate, which requires every required field to be
   valid and the NAACCR edits to pass before a form can be finalized.
-- **Governance / OBO.** Databricks Apps OAuth identifies the signed-in user; the app reads
-  Unity-Catalog-governed data on behalf of that user. Per-user Lakebase scoping is enforced
-  at the app layer today, structured to move to DB-level per-user credentials when Lakebase
-  ships them.
+- **Governance and identity.** Databricks Apps sign-in identifies the user, and the app
+  records who made each decision. The app reads Unity Catalog data with its own service
+  principal, not on behalf of the signed-in user, and per-user scoping is enforced in the
+  app layer. Switching to on-behalf-of-user auth (`user_api_scopes` and the forwarded user
+  token) is a natural next step.
 - **Authentic, re-sourceable dictionary.** The 202 NAACCR items are sourced from the
   official NAACCR v25 data dictionary (`naaccr-dictionary-250.xml`), not hand-coded. See
   `ml/naaccr/` to re-source when NAACCR publishes a new version.
