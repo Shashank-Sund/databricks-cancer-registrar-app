@@ -323,6 +323,11 @@ test.describe('phone 390x844', () => {
         if (p.name === 'case') {
           await expect(page.getByTestId('finish-button')).toBeInViewport({ ratio: 1 });
           await expect(page.getByTestId('fill-unknowns-all')).toBeInViewport({ ratio: 1 });
+          // Section titles keep room for their text (header wraps instead).
+          const narrow = await page.locator('section h2').evaluateAll((els) =>
+            els.filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => el.textContent),
+          );
+          expect(narrow, 'truncated section titles').toEqual([]);
         }
 
         const covered = await page.evaluate(() => {
